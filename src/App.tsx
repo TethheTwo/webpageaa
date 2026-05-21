@@ -28,7 +28,9 @@ function App() {
   ]);
 
   const [images, setImages] = useState<string[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   const addRow = () => {
     const newRow: TableRow = {
@@ -108,11 +110,38 @@ function App() {
     pdf.save('page_capture.pdf');
   };
 
+  const captureElement = async (element: HTMLElement | null, download = true) => {
+    if (!element) return;
+    const canvas = await html2canvas(element);
+    if (download) {
+      const link = document.createElement('a');
+      link.download = 'capture.png';
+      link.href = canvas.toDataURL();
+      link.click();
+    } else {
+      canvas.toBlob(async (blob) => {
+        if (blob) {
+          try {
+            await navigator.clipboard.write([
+              new ClipboardItem({ 'image/png': blob })
+            ]);
+            alert('¡Copiado al portapapeles!');
+          } catch (err) {
+            console.error('Error al copiar: ', err);
+          }
+        }
+      });
+    }
+  };
+
   return (
     <div className="container">
       <header>
         <h1>Panel de Control</h1>
         <div className="actions">
+          <button onClick={() => setIsModalOpen(true)} className="btn-primary">
+            <Plus size={20} /> Crear
+          </button>
           <button onClick={exportCSV} title="Exportar CSV">
             <FileSpreadsheet size={20} /> Exportar CSV
           </button>
@@ -189,6 +218,42 @@ function App() {
           </div>
         </section>
       </main>
+
+      {isModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
+          <div
+            className="modal-content"
+            onClick={e => e.stopPropagation()}
+            ref={modalRef}
+          >
+            <div className="modal-header">
+              <h2>Crear Nuevo Elemento</h2>
+              <div className="modal-actions">
+                <button onClick={() => captureElement(modalRef.current, true)} title="Capturar Ventana">
+                  <Camera size={18} />
+                </button>
+                <button onClick={() => captureElement(modalRef.current, false)} title="Copiar Ventana">
+                  <Copy size={18} />
+                </button>
+                <button onClick={() => setIsModalOpen(false)} className="btn-close">
+                  &times;
+                </button>
+              </div>
+            </div>
+            <form onSubmit={e => e.preventDefault()} className="modal-form">
+              <div className="form-group">
+                <label>Usuario / Nombre</label>
+                <input type="text" placeholder="Ej. Juan Pérez" />
+              </div>
+              <div className="form-group">
+                <label>Comentario</label>
+                <textarea placeholder="Escribe algo aquí..."></textarea>
+              </div>
+              <button type="submit" className="btn-submit">Guardar</button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
